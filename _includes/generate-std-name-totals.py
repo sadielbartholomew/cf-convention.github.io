@@ -2,8 +2,10 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime
-import matplotlib.pyplot as plt
 import matplotlib.dates as dates
+import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 import os
 import pprint
 import re
@@ -55,8 +57,9 @@ def get_all_std_names_per_version(root_dir, return_names=False):
             try:
                 date = get_from_file(XML_LAST_MODIFIED_PATTERN, filename)[0]
             except:
-                #raise Exception("Can't find date")
-                date = "2000-01-01"  # USE AS PLOTTABLE PLACEHOLDER FOR NOW
+                # No timestamp on v1, so assume from v1.0 of CF, Oct 2003 (see
+                # http://cfconventions.org/faq.html#when_started)
+                date = "2003-10-01"
             totals[version] = {"total": total, "date": date}
         else:
             names[version] = names_in_version
@@ -78,7 +81,6 @@ def calculate_difference_totals(totals_data):
                 previous_ver_data = totals_data[ver - 2]
             totals_with_diff_data[ver].update(
                 {"diff": data["total"] - previous_ver_data["total"]})
-    print(totals_with_diff_data)
     return totals_with_diff_data
 
 
@@ -118,7 +120,6 @@ def convert_date_str(date_str):
 
 
 def make_raw_and_difference_plot(totals_figures, by_date=True):
-    fig, (ax1, ax2) = plt.subplots(2)
     totals_figures = pre_process(totals_figures)
     totals_figures = calculate_difference_totals(totals_figures)
 
@@ -131,12 +132,55 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         else:
             totals[ver] = data["total"]
             diffs[ver] = data["diff"]
+    pprint.pprint(totals)  ### DEBUG
 
     sorted_totals = sorted(totals.items())
     sorted_diffs = sorted(diffs.items())
-    ax1.plot(*zip(*sorted_totals), 'ko-')
-    ax2.plot(*zip(*sorted_diffs), 'r.-')
 
+    #fig, (ax1, ax2) = plt.subplots(2)
+    fig, ax1 = plt.subplots()
+    # Remove horizontal space between axes
+    fig.subplots_adjust(hspace=0)
+    ax2 = ax1.twinx()
+    axins1 = inset_axes(ax1, width="70%", height="33%", loc="upper left")
+    axins1.yaxis.tick_right()
+
+    axins2 = inset_axes(
+        ax1, width="33%", height="30%", loc="lower right", borderpad=3)
+    
+    ax1.step(*zip(*sorted_totals), where='post',
+             linestyle='-', color='black', alpha=0.5, linewidth=2)  # or where='post'
+    ax1.plot(
+        *zip(*sorted_totals),
+        marker=None, linestyle='--', color='black', linewidth=2,
+        zorder=0)  # fix zorder, when can't use on stem?
+    ax1.set_ylim(0, 4500)
+
+    axins2.step(*zip(*sorted_totals), where='post',
+             linestyle='-', color='black', alpha=0.5, linewidth=2)
+    axins2.plot(
+        *zip(*sorted_totals),
+        marker=None, linestyle='--', color='black', linewidth=2,
+        zorder=0)  # fix zorder, when can't use on stem?
+    axins2.set_xlim(datetime(2019, 1, 1, 0, 0), datetime.now())
+    axins2.set_ylim(4300, 4420)
+    axins2.set_yticklabels([])
+    axins2.set_xticklabels([])
+    mark_inset(ax1, axins2, loc1=2, loc2=4, fc="none", ec="0.5")
+
+    ax2.stem(
+        *zip(*sorted_diffs), use_line_collection=True, bottom=0)
+
+    ax2.set_ylim(1, 1400)
+    #ax2.plot(*zip(*sorted_diffs), 'r.-')
+
+    axins1.plot(*zip(*sorted_diffs), marker='o', linestyle='None')  # needs string!
+    axins1.set_yscale('log')
+    axins1.set_ylim(1, 1250)
+    axins1.set_xlim(datetime(2006, 9, 26, 0, 0))
+
+    axins1.plot()  # fix zorder, when can't use on stem?
+    ###fig.tight_layout()  # otherwise the right y-label is slightly clipped
     plt.show()
 
 
@@ -186,14 +230,14 @@ def print_version_comparison(newer_version, older_version):
 
 
 # Inspect & print name differences as list to pass to online vis tool:
-print_version_comparison(12, 11)
-print_version_comparison(49, 48)
+###print_version_comparison(12, 11)
+###print_version_comparison(49, 48)
 
 totals_data = get_all_std_names_per_version(STD_NAME_ROOT_DIR_RELATIVE_PATH)
 
 # Raw/crude table of totals per version:
-pprint.pprint(totals_data)
+###pprint.pprint(totals_data)
 
 # Nicer in a plot:
-make_plot_against_versions(totals_data)
+###make_plot_against_versions(totals_data)
 make_plot_against_dates(totals_data)
