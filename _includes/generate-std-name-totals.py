@@ -10,6 +10,7 @@ import os
 import pprint
 import re
 
+
 # Run from root repo dir (or if from 'includes' dir, add initial ".."):
 STD_NAME_ROOT_DIR_RELATIVE_PATH = os.path.join("Data", "cf-standard-names")
 
@@ -120,6 +121,8 @@ def convert_date_str(date_str):
 
 
 def make_raw_and_difference_plot(totals_figures, by_date=True):
+    LINEWIDTH = 3
+    
     totals_figures = pre_process(totals_figures)
     totals_figures = calculate_difference_totals(totals_figures)
 
@@ -139,38 +142,61 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
 
     #fig, (ax1, ax2) = plt.subplots(2)
     fig, ax1 = plt.subplots()
+    ax1.set_title(r'Total, & difference (from previous version) in, ' +
+                  r'$\it{number of standard names}$ in the CF table by date')
     # Remove horizontal space between axes
     fig.subplots_adjust(hspace=0)
+    ax1.set_xlabel(r"Date of table version")
+    ax1.set_ylabel(
+        r"$\it{Total number}$ (of standard names)")
     ax2 = ax1.twinx()
+    ax2.set_ylabel(
+        r"$\it{Difference in total}$ (number of standard \n " +
+        r"names) relative to (total in) previous version"
+    )
+
+
     axins1 = inset_axes(ax1, width="70%", height="33%", loc="upper left")
     axins1.yaxis.tick_right()
 
     axins2 = inset_axes(
-        ax1, width="33%", height="30%", loc="lower right", borderpad=3)
+        ax1, width="50%", height="30%",
+        loc="lower right", borderpad=3)  ###
     
     ax1.step(*zip(*sorted_totals), where='post',
-             linestyle='-', color='black', alpha=0.5, linewidth=2)  # or where='post'
-    ax1.plot(
+             linestyle='-', color='crimson', alpha=0.4,
+             linewidth=LINEWIDTH, zorder=2)
+
+    st, = ax1.plot(
         *zip(*sorted_totals),
-        marker=None, linestyle='--', color='black', linewidth=2,
-        zorder=0)  # fix zorder, when can't use on stem?
+        marker=None, linestyle='dashed', color='crimson',
+        linewidth=LINEWIDTH)
+    ax1.yaxis.label.set_color(st.get_color())
     ax1.set_ylim(0, 4500)
 
     axins2.step(*zip(*sorted_totals), where='post',
-             linestyle='-', color='black', alpha=0.5, linewidth=2)
+             linestyle='-', color='crimson', alpha=0.4, linewidth=LINEWIDTH)
+
     axins2.plot(
         *zip(*sorted_totals),
-        marker=None, linestyle='--', color='black', linewidth=2,
-        zorder=0)  # fix zorder, when can't use on stem?
+        marker=None, linestyle='dashed', color='crimson',
+        linewidth=LINEWIDTH)
     axins2.set_xlim(datetime(2019, 1, 1, 0, 0), datetime.now())
     axins2.set_ylim(4300, 4420)
     axins2.set_yticklabels([])
     axins2.set_xticklabels([])
     mark_inset(ax1, axins2, loc1=2, loc2=4, fc="none", ec="0.5")
 
-    ax2.stem(
+    ax2.set_zorder(3)
+    dt = ax2.stem(
         *zip(*sorted_diffs), use_line_collection=True, bottom=0)
+    print(dt.markerline.__dict__)
+    ax2.yaxis.label.set_color('C0')  # default matplotlib blue now
 
+    ax1.tick_params(axis='y', colors=st.get_color())
+    ax2.tick_params(axis='y', colors='C0')
+
+    
     ax2.set_ylim(1, 1400)
     #ax2.plot(*zip(*sorted_diffs), 'r.-')
 
