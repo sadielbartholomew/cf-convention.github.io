@@ -4,6 +4,7 @@
 from datetime import datetime
 import matplotlib.dates as dates
 import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator, ScalarFormatter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 import os
@@ -140,28 +141,40 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     sorted_totals = sorted(totals.items())
     sorted_diffs = sorted(diffs.items())
 
+    plt.rcParams.update({'font.size': 12})
     #fig, (ax1, ax2) = plt.subplots(2)
     fig, ax1 = plt.subplots()
-    ax1.set_title(r'Total, & difference (from previous version) in, ' +
-                  r'$\it{number of standard names}$ in the CF table by date')
+    ax1.set_title(
+        'Number of standard names in the CF conventions table by date',
+        fontsize=18
+    )
     # Remove horizontal space between axes
     fig.subplots_adjust(hspace=0)
-    ax1.set_xlabel(r"Date of table version")
+    ax1.set_xlabel(
+        "Date of table version (marked at Jan 1st)",
+        fontsize=14
+    )
+    ax1.tick_params(axis='x', which='minor')
     ax1.set_ylabel(
-        r"$\it{Total number}$ (of standard names)")
+        "Total number",
+        fontsize=14
+    )
+    ax1.xaxis.set_minor_locator(AutoMinorLocator(2))
     ax2 = ax1.twinx()
     ax2.set_ylabel(
-        r"$\it{Difference in total}$ (number of standard \n " +
-        r"names) relative to (total in) previous version"
+        "Difference in total number \nrelative to previous version",
+        fontsize=14,
+        rotation=270,
+        labelpad=35
     )
+    ax2.yaxis.set_minor_locator(AutoMinorLocator(2))
 
 
     axins1 = inset_axes(ax1, width="70%", height="33%", loc="upper left")
     axins1.yaxis.tick_right()
 
     axins2 = inset_axes(
-        ax1, width="50%", height="30%",
-        loc="lower right", borderpad=3)  ###
+        ax1, width="50%", height="30%", loc="lower right", borderpad=3)
     
     ax1.step(*zip(*sorted_totals), where='post',
              linestyle='-', color='crimson', alpha=0.4,
@@ -201,8 +214,12 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     #ax2.plot(*zip(*sorted_diffs), 'r.-')
 
     axins1.plot(*zip(*sorted_diffs), marker='o', linestyle='None')  # needs string!
+    axins1.set_ylim(1, 1500)
+    axins1.set_yticks([1, 10, 100, 1000])
     axins1.set_yscale('log')
-    axins1.set_ylim(1, 1250)
+    axins1.yaxis.set_major_formatter(ScalarFormatter())
+
+
     axins1.set_xlim(datetime(2006, 9, 26, 0, 0))
 
     axins1.plot()  # fix zorder, when can't use on stem?
