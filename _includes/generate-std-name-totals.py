@@ -79,7 +79,7 @@ def calculate_difference_totals(totals_data):
         else:
             try:
                 previous_ver_data = totals_data[ver - 1]
-            except KeyError:  # rarely version is missing, but not >1 together
+            except KeyError:  # account for case of v39 (v38 was skipped)
                 previous_ver_data = totals_data[ver - 2]
             totals_with_diff_data[ver].update(
                 {"diff": data["total"] - previous_ver_data["total"]})
@@ -126,6 +126,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     
     totals_figures = pre_process(totals_figures)
     totals_figures = calculate_difference_totals(totals_figures)
+    pprint.pprint(totals_figures)  ### DEBUG
 
     totals = {}
     diffs = {}
@@ -136,6 +137,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         else:
             totals[ver] = data["total"]
             diffs[ver] = data["diff"]
+
     pprint.pprint(totals)  ### DEBUG
 
     sorted_totals = sorted(totals.items())
@@ -196,14 +198,55 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         linewidth=LINEWIDTH)
     axins2.set_xlim(datetime(2019, 1, 1, 0, 0), datetime.now())
     axins2.set_ylim(4300, 4420)
-    axins2.set_yticklabels([])
-    axins2.set_xticklabels([])
+    #axins2.set_yticklabels([])
+    #axins2.set_xticklabels([])
     mark_inset(ax1, axins2, loc1=2, loc2=4, fc="none", ec="0.5")
 
     ax2.set_zorder(3)
     dt = ax2.stem(
         *zip(*sorted_diffs), use_line_collection=True, bottom=0)
-    print(dt.markerline.__dict__)
+
+    # Version label annotation:
+    for ver, data in totals_figures.items():
+        if ver % 5 == 0:  # annotate version every 5 versions
+            x = convert_date_str(data["date"])
+            y_diff = data["diff"]
+            y_total = data["total"]
+            ax1.annotate(
+                str(ver), xy=(x, y_total), xytext=(x, y_total-500),
+                color='darkgoldenrod', alpha=0.75,
+                arrowprops=dict(
+                    fc='darkgoldenrod', ec='darkgoldenrod', shrinkA=0.05,
+                    shrinkB=0.05,
+                    alpha=0.75)
+            )
+            ax2.annotate(
+                "", xy=(x, y_diff), xytext=(x, y_diff+100),
+                color='darkgoldenrod',
+                arrowprops=dict(
+                    fc='darkgoldenrod', ec='darkgoldenrod', shrinkA=1.0,
+                    shrinkB=1.0,
+                    alpha=0.75)
+            )
+            axins1.annotate(
+                "", xy=(x, y_diff), xytext=(x, y_diff+100),
+                color='darkgoldenrod',
+                arrowprops=dict(
+                    fc='darkgoldenrod', ec='darkgoldenrod', shrinkA=1.0,
+                    shrinkB=1.0,
+                    alpha=0.75)
+            )
+            axins2.annotate(
+                str(ver), xy=(x, y_total), xytext=(x, y_total-500),
+                color='darkgoldenrod', alpha=0.75,
+                arrowprops=dict(
+                    fc='darkgoldenrod', ec='darkgoldenrod', shrinkA=1.0,
+                    shrinkB=1.0,
+                    alpha=0.75)
+            )
+
+
+
     ax2.yaxis.label.set_color('C0')  # default matplotlib blue now
 
     ax1.tick_params(axis='y', colors=st.get_color())
@@ -212,15 +255,15 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     
     ax2.set_ylim(1, 1400)
     #ax2.plot(*zip(*sorted_diffs), 'r.-')
-
     axins1.plot(*zip(*sorted_diffs), marker='o', linestyle='None')  # needs string!
     axins1.set_ylim(1, 1500)
     axins1.set_yticks([1, 10, 100, 1000])
     axins1.set_yscale('log')
     axins1.yaxis.set_major_formatter(ScalarFormatter())
+    axins1.yaxis.label.set_color(st.get_color())
 
 
-    axins1.set_xlim(datetime(2006, 9, 26, 0, 0))
+    axins1.set_xlim(datetime(2006, 9, 26, 0, 0), datetime.now())
 
     axins1.plot()  # fix zorder, when can't use on stem?
     ###fig.tight_layout()  # otherwise the right y-label is slightly clipped
