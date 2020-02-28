@@ -10,6 +10,7 @@ from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 import os
 import pprint
 import re
+from wordcloud import WordCloud
 
 
 # Run from root repo dir (or if from 'includes' dir, add initial ".."):
@@ -311,19 +312,28 @@ def print_version_comparison(newer_version, older_version):
     )
     print("\n\n\n", "-" * 15, "New to v%s" % str(newer_version),
           "-" * 15, "\n\n\n")
-    for sname in convert_underscored_phrase_to_words(new_names):
+    names_spaced = convert_underscored_phrase_to_words(new_names)
+    for sname in names_spaced:
         print(sname)
+    return " ".join(names_spaced)
 
 
-# Inspect & print name differences as list to pass to online vis tool:
-###print_version_comparison(12, 11)
-###print_version_comparison(49, 48)
+def make_wordcloud(text):
+    """ Create wordcloud for version differences in standard names. """
+    wordcloud = WordCloud(background_color='white').generate(text)
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis("off")
+    plt.show()
+
 
 totals_data = get_all_std_names_per_version(STD_NAME_ROOT_DIR_RELATIVE_PATH)
 
 # Raw/crude table of totals per version:
-###pprint.pprint(totals_data)
+pprint.pprint(totals_data)
 
 # Nicer in a plot:
-###make_plot_against_versions(totals_data)
 make_plot_against_dates(totals_data)
+
+# Inspect & print name differences as list to pass to online vis tool:
+make_wordcloud(print_version_comparison(12, 11))
+make_wordcloud(print_version_comparison(49, 48))
