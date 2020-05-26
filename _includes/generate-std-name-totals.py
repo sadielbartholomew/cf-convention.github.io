@@ -4,16 +4,19 @@
 from datetime import datetime
 import matplotlib.dates as dates
 import matplotlib.pyplot as plt
-from matplotlib.ticker import AutoMinorLocator, ScalarFormatter
+from matplotlib.ticker import (
+    AutoMinorLocator, ScalarFormatter, LogLocator, NullFormatter
+)
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import mark_inset
 import os
 import pprint
 import re
+import numpy as np
 from wordcloud import WordCloud
 
 
-# Run from root repo dir (or if from 'includes' dir, add initial ".."):
+# Run from root repo dir (or if from 'includes' dir, add initial ".." here):
 STD_NAME_ROOT_DIR_RELATIVE_PATH = os.path.join("Data", "cf-standard-names")
 
 
@@ -146,7 +149,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
 
     plt.rcParams.update({'font.size': 12})
     #fig, (ax1, ax2) = plt.subplots(2)
-    fig, ax1 = plt.subplots()
+    fig, ax1 = plt.subplots(figsize=(10, 5))
     ax1.set_title(
         'Number of standard names in the CF conventions table by date',
         fontsize=18
@@ -170,15 +173,12 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         rotation=270,
         labelpad=35
     )
-    ax2.yaxis.set_minor_locator(AutoMinorLocator(2))
+    ax2.yaxis.set_minor_locator(AutoMinorLocator(1))
 
 
-    axins1 = inset_axes(ax1, width="70%", height="33%", loc="upper left")
+    axins1 = inset_axes(ax1, width="75%", height="33%", loc="upper left")
     axins1.yaxis.tick_right()
 
-    axins2 = inset_axes(
-        ax1, width="50%", height="30%", loc="lower right", borderpad=3)
-    
     ax1.step(*zip(*sorted_totals), where='post',
              linestyle='-', color='crimson', alpha=0.4,
              linewidth=LINEWIDTH, zorder=2)
@@ -190,19 +190,6 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     ax1.yaxis.label.set_color(st.get_color())
     ax1.set_ylim(0, 4500)
 
-    axins2.step(*zip(*sorted_totals), where='post',
-             linestyle='-', color='crimson', alpha=0.4, linewidth=LINEWIDTH)
-
-    axins2.plot(
-        *zip(*sorted_totals),
-        marker=None, linestyle='dashed', color='crimson',
-        linewidth=LINEWIDTH)
-    axins2.set_xlim(datetime(2019, 1, 1, 0, 0), datetime.now())
-    axins2.set_ylim(4300, 4420)
-    #axins2.set_yticklabels([])
-    #axins2.set_xticklabels([])
-    mark_inset(ax1, axins2, loc1=2, loc2=4, fc="none", ec="0.5")
-
     ax2.set_zorder(3)
     dt = ax2.stem(
         *zip(*sorted_diffs), use_line_collection=True, bottom=0)
@@ -213,36 +200,25 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
             x = convert_date_str(data["date"])
             y_diff = data["diff"]
             y_total = data["total"]
-            ax1.annotate(
-                str(ver), xy=(x, y_total), xytext=(x, y_total-500),
+            ax1.annotate( #  dates.date2num(x)-30
+                str(ver), xy=(x, y_total), xytext=(x, y_total - 430),
                 color='darkgoldenrod', alpha=0.75,
-                arrowprops=dict(
-                    fc='darkgoldenrod', ec='darkgoldenrod', shrinkA=0.05,
-                    shrinkB=0.05,
+                arrowprops=dict(arrowstyle="wedge",
+                    fc='darkgoldenrod', ec='darkgoldenrod',
                     alpha=0.75)
             )
             ax2.annotate(
-                "", xy=(x, y_diff), xytext=(x, y_diff+100),
+                "", xy=(x, y_diff), xytext=(dates.date2num(x)+30, y_diff+85),
                 color='darkgoldenrod',
-                arrowprops=dict(
-                    fc='darkgoldenrod', ec='darkgoldenrod', shrinkA=1.0,
-                    shrinkB=1.0,
+                arrowprops=dict(arrowstyle="wedge",
+                    fc='darkgoldenrod', ec='darkgoldenrod',
                     alpha=0.75)
             )
             axins1.annotate(
-                "", xy=(x, y_diff), xytext=(x, y_diff+100),
+                str(ver), xy=(x, y_diff), xytext=(dates.date2num(x)-90, y_diff + 2.25*y_diff),
                 color='darkgoldenrod',
-                arrowprops=dict(
-                    fc='darkgoldenrod', ec='darkgoldenrod', shrinkA=1.0,
-                    shrinkB=1.0,
-                    alpha=0.75)
-            )
-            axins2.annotate(
-                str(ver), xy=(x, y_total), xytext=(x, y_total-500),
-                color='darkgoldenrod', alpha=0.75,
-                arrowprops=dict(
-                    fc='darkgoldenrod', ec='darkgoldenrod', shrinkA=1.0,
-                    shrinkB=1.0,
+                arrowprops=dict(arrowstyle="wedge",
+                    fc='darkgoldenrod', ec='darkgoldenrod',
                     alpha=0.75)
             )
 
@@ -252,23 +228,32 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
 
     ax1.tick_params(axis='y', colors=st.get_color())
     ax2.tick_params(axis='y', colors='C0')
-
     
     ax2.set_ylim(1, 1400)
     #ax2.plot(*zip(*sorted_diffs), 'r.-')
     axins1.plot(*zip(*sorted_diffs), marker='o', linestyle='None')  # needs string!
-    axins1.set_ylim(1, 1500)
-    axins1.set_yticks([1, 10, 100, 1000])
-    axins1.set_yscale('log')
-    axins1.yaxis.set_major_formatter(ScalarFormatter())
-    axins1.yaxis.label.set_color(st.get_color())
 
+    axins1.set_ylim(1, 1700)
+    axins1.set_yscale('log')
+    axins1.set_yticks([1, 10, 100, 1000])
+    axins1.yaxis.set_major_formatter(ScalarFormatter())
+
+    locmin = LogLocator(
+        base=10.0, subs=np.arange(2, 10) * .1, numticks=100)
+    axins1.yaxis.set_minor_locator(locmin)
+    axins1.yaxis.set_minor_formatter(NullFormatter())
+
+    
+    axins1.yaxis.label.set_color(st.get_color())
+    axins1.yaxis.label.set_color('C0')  # default matplotlib blue now
+    axins1.tick_params(axis='y', colors='C0', which='both')
 
     axins1.set_xlim(datetime(2006, 9, 26, 0, 0), datetime.now())
 
     axins1.plot()  # fix zorder, when can't use on stem?
     ###fig.tight_layout()  # otherwise the right y-label is slightly clipped
     plt.show()
+    plt.savefig('raw_and_diff_plot.png', format='png')
 
 
 def make_plot_against_dates(totals_figures):
@@ -318,12 +303,14 @@ def print_version_comparison(newer_version, older_version):
     return " ".join(names_spaced)
 
 
-def make_wordcloud(text):
+def make_wordcloud(text, name):
     """ Create wordcloud for version differences in standard names. """
     wordcloud = WordCloud(background_color='white').generate(text)
+    plt.figure()
     plt.imshow(wordcloud, interpolation='bilinear')
     plt.axis("off")
-    plt.show()
+    ###plt.show()
+    ###plt.savefig('{}.png'.format(name), format='png')
 
 
 totals_data = get_all_std_names_per_version(STD_NAME_ROOT_DIR_RELATIVE_PATH)
@@ -335,5 +322,5 @@ pprint.pprint(totals_data)
 make_plot_against_dates(totals_data)
 
 # Inspect & print name differences as list to pass to online vis tool:
-make_wordcloud(print_version_comparison(12, 11))
-make_wordcloud(print_version_comparison(49, 48))
+make_wordcloud(print_version_comparison(12, 11), "wordcloud_diff_12_from_11")
+make_wordcloud(print_version_comparison(49, 48), "wordcloud_diff_49_from_48")
