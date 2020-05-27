@@ -252,8 +252,8 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
 
     axins1.plot()  # fix zorder, when can't use on stem?
     ###fig.tight_layout()  # otherwise the right y-label is slightly clipped
-    plt.show()
     plt.savefig('raw_and_diff_plot.png', format='png')
+    plt.show()
 
 
 def make_plot_against_dates(totals_figures):
@@ -305,12 +305,13 @@ def print_version_comparison(newer_version, older_version):
 
 def make_wordcloud(text, name):
     """ Create wordcloud for version differences in standard names. """
-    wordcloud = WordCloud(background_color='white').generate(text)
-    plt.figure()
+    wordcloud = WordCloud(background_color='white', width=1600, height=800).generate(text)
+    plt.figure(figsize=(12,6))
     plt.imshow(wordcloud, interpolation='bilinear')
     plt.axis("off")
-    ###plt.show()
-    ###plt.savefig('{}.png'.format(name), format='png')
+    plt.tight_layout(pad=0)
+    plt.savefig('{}.png'.format(name), format='png')
+    plt.show()
 
 
 totals_data = get_all_std_names_per_version(STD_NAME_ROOT_DIR_RELATIVE_PATH)
