@@ -41,7 +41,7 @@ def extract_xml_by_version_from_std_name_dir(std_name_dir):
     for dir_path, _, file_list in os.walk(std_name_dir):
         if dir_path.endswith("src"):
             for filename in file_list:
-                if filename.endswith(".xml"):
+                if filename.endswith("cf-standard-name-table.xml"):
                     version = dir_path.split("/")[-2]
                     all_xml_file_paths[version] = dir_path + "/" + filename
     return all_xml_file_paths
@@ -58,6 +58,10 @@ def get_all_std_names_per_version(root_dir, return_names=False):
             try:
                 date = get_from_file(XML_LAST_MODIFIED_PATTERN, filename)[0]
             except:
+                print(
+                    f"WARNING: for version {version} from {filename} could "
+                    "not get date, so assumed and registered with v1.0 date."
+                )
                 # No timestamp on v1, so assume from v1.0 of CF, Oct 2003 (see
                 # http://cfconventions.org/faq.html#when_started)
                 date = "2003-10-01"
@@ -145,43 +149,47 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     fig, ax1 = plt.subplots()
     ax1.set_title(
         (
-            "Number of Standard Names in the CF Conventions table "
-            "by date and per release"
+            "Number of CF Conventions Standard Names in the table "
+            "by date and per version"
         ),
         fontsize=18,
     )
     # Remove horizontal space between axes
     fig.subplots_adjust(hspace=0)
-    ax1.set_xlabel("Date of table version (marked at January 1st)", fontsize=18)
+    ax1.set_xlabel("Date of table version, marked each year at January 1st", fontsize=18)
     ax1.tick_params(axis="x", which="minor")
-    ax1.set_ylabel("Total number", fontsize=18)
+    ax1.set_ylabel("Total number of names", fontsize=18)
     ax1.xaxis.set_minor_locator(AutoMinorLocator(4))
     ax2 = ax1.twinx()
     ax2.set_ylabel(
-        "Difference in total number, relative\nto previous release (log scale)",
+        "Difference in total number of names,\n relative to previous version (log scale)",
         fontsize=18,
         rotation=270,
-        labelpad=35,
+        labelpad=40,
     )
     ax2.set_yscale("log")
     ax2.yaxis.set_major_formatter(ScalarFormatter())
 
-    (st,) = ax1.step(
+    ax1.step(
         *zip(*sorted_totals),
         where="post",
         linestyle="-",
         color="crimson",
         linewidth=LINEWIDTH,
-        zorder=2
+        zorder=2,
+        label="Total number (see right y-axis)",
     )
 
-    ax1.yaxis.label.set_color(st.get_color())
+    ax1.yaxis.label.set_color("crimson")
     ax1.set_ylim(bottom=0)
 
     ax1.yaxis.set_major_locator(MultipleLocator(500))
 
     ax2.set_zorder(3)
-    dt = ax2.scatter(*zip(*sorted_diffs), s=20)
+    dt = ax2.scatter(
+        *zip(*sorted_diffs), s=20,
+        label="Difference in total number (see left y-axis)"
+    )
 
     # Version label annotation:
     for ver, data in totals_figures.items():
@@ -190,7 +198,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
             x = convert_date_str(data["date"])
             y_diff = data["diff"]
             y_total = data["total"]
-            ax1.annotate(
+            final_annotation = ax1.annotate(
                 str(ver),
                 xy=(x, y_total),
                 xytext=(x, y_total + 200),
@@ -207,7 +215,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
             )
             # For scatter, circle in the same colour to avoid more arrows
             # which will clutter, tied by having the same colour
-            ax2.scatter(
+            final_scatter_item = ax2.scatter(
                 x,
                 y_diff,
                 facecolors="none",
@@ -217,14 +225,25 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
                 s=80,
             )
 
+    # Set the labelling for the legend only one scatter item for the
+    # every 5 version markers, to avoid duplicate legend items
+    final_scatter_item.set_label(
+        "Marks every five versions (plus the first) on difference",
+    )
     ax2.yaxis.label.set_color("C0")  # default matplotlib blue now
 
-    ax1.tick_params(axis="y", colors=st.get_color())
+    ax1.tick_params(axis="y", colors="crimson")
     ax2.tick_params(axis="y", colors="C0")
 
     ax2.set_ylim(bottom=1)
 
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
+
+    # Add layout
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc="upper left", fontsize=14)
+
     plt.show()
 
 
