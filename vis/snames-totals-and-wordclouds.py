@@ -153,7 +153,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     ax1.set_xlabel("Date of table version (marked at Jan 1st)", fontsize=14)
     ax1.tick_params(axis="x", which="minor")
     ax1.set_ylabel("Total number", fontsize=14)
-    ax1.xaxis.set_minor_locator(AutoMinorLocator(2))
+    ax1.xaxis.set_minor_locator(AutoMinorLocator(4))
     ax2 = ax1.twinx()
     ax2.set_ylabel(
         "Difference in total number \nrelative to previous version",
@@ -161,27 +161,20 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         rotation=270,
         labelpad=35,
     )
-    ax2.yaxis.set_minor_locator(AutoMinorLocator(2))
+    ###ax2.yaxis.set_minor_locator(AutoMinorLocator(5))
     # New
     ax2.set_yscale("log")
+    ax2.yaxis.set_major_formatter(ScalarFormatter())
 
-    ax1.step(
+    (st,) = ax1.step(
         *zip(*sorted_totals),
         where="post",
         linestyle="-",
         color="crimson",
-        alpha=0.4,
         linewidth=LINEWIDTH,
         zorder=2
     )
 
-    (st,) = ax1.plot(
-        *zip(*sorted_totals),
-        marker=None,
-        linestyle="dashed",
-        color="crimson",
-        linewidth=LINEWIDTH
-    )
     ax1.yaxis.label.set_color(st.get_color())
     ax1.set_ylim(bottom=0)
 
