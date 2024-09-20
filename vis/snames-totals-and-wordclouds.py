@@ -156,18 +156,19 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     )
     # Remove horizontal space between axes
     fig.subplots_adjust(hspace=0)
-    ax1.set_xlabel("Date of table version, marked each year at January 1st", fontsize=18)
+    ax1.set_xlabel("Date, marked each year at January 1st", fontsize=16)
     ax1.tick_params(axis="x", which="minor")
-    ax1.set_ylabel("Total number of names", fontsize=18)
+    ax1.set_ylabel("Total number of names", fontsize=16)
     ax1.xaxis.set_minor_locator(AutoMinorLocator(4))
     ax2 = ax1.twinx()
     ax2.set_ylabel(
         "Difference in total number of names,\n relative to previous version (log scale)",
-        fontsize=18,
+        fontsize=16,
         rotation=270,
         labelpad=40,
     )
-    ax2.set_yscale("log")
+    # Use 'symlog' not 'log' so we can include zero values
+    ax2.set_yscale("symlog")
     ax2.yaxis.set_major_formatter(ScalarFormatter())
 
     ax1.step(
@@ -177,31 +178,39 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         color="crimson",
         linewidth=LINEWIDTH,
         zorder=2,
-        label="Total number (see right y-axis)",
+        label="Total number (see left y-axis)",
     )
-
     ax1.yaxis.label.set_color("crimson")
-    ax1.set_ylim(bottom=0)
 
     ax1.yaxis.set_major_locator(MultipleLocator(500))
 
     ax2.set_zorder(3)
     dt = ax2.scatter(
         *zip(*sorted_diffs), s=20,
-        label="Difference in total number (see left y-axis)"
+        label="Difference in total number (see right y-axis)"
     )
 
     # Version label annotation:
     for ver, data in totals_figures.items():
         # Annotate version every 5 versions, also first as core one
         if ver % 5 == 0 or ver == 1:
+            # Annotations above with arrows pointing down mostly, to avoid
+            # overlaying the plot lines, but for the last versions have the
+            # annotation below with arrows pointing up, to avoid them
+            # scrolling off the side of the plot.
             x = convert_date_str(data["date"])
             y_diff = data["diff"]
             y_total = data["total"]
+
+            y_offset = y_total + 200
+            if ver >= 60:
+                # Bit more than -200, inverse to above, to cover arrow size
+                y_offset = y_total - 300
+
             final_annotation = ax1.annotate(
                 str(ver),
                 xy=(x, y_total),
-                xytext=(x, y_total + 200),
+                xytext=(x, y_offset),
                 color="darkgoldenrod",
                 alpha=0.6,
                 arrowprops=dict(
@@ -232,17 +241,31 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     )
     ax2.yaxis.label.set_color("C0")  # default matplotlib blue now
 
+    ax1.set_ylim(bottom=0)
+    #ax2.set_ylim(bottom=0)
+    # symlog specification makes log-scale ticks difficult, so simplest to
+    # explicitly set the minor ticks, like so
+    ax2.set_yticks([0, 1, 10, 100, 1000])
+    ax2.set_yticks(
+        [0,] +
+        list(range(1, 10)) +
+        list(range(10, 100, 10)) +
+        list(range(100, 1100, 100)),
+        minor=True
+    )
+    # TODO NEED MINOR TICKS TO BE BLUE, THEY SEEM TO BE BEING PLOTTED BLACK
     ax1.tick_params(axis="y", colors="crimson")
     ax2.tick_params(axis="y", colors="C0")
 
-    ax2.set_ylim(bottom=1)
 
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
     # Add layout
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines + lines2, labels + labels2, loc="upper left", fontsize=14)
+    ax1.legend(
+        lines + lines2, labels + labels2, loc="upper left", fontsize=14,
+    )
 
     plt.show()
 
