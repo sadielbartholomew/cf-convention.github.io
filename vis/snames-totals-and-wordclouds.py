@@ -8,7 +8,7 @@ from datetime import datetime
 
 import matplotlib.dates as dates
 import matplotlib.pyplot as plt
-from matplotlib.ticker import AutoMinorLocator, ScalarFormatter
+from matplotlib.ticker import AutoMinorLocator, ScalarFormatter, MultipleLocator
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 import numpy as np
 from wordcloud import WordCloud
@@ -126,7 +126,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
 
     totals_figures = pre_process(totals_figures)
     totals_figures = calculate_difference_totals(totals_figures)
-    pprint.pprint(totals_figures)  ### DEBUG
+    pprint.pprint(totals_figures)
 
     totals = {}
     diffs = {}
@@ -138,31 +138,31 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
             totals[ver] = data["total"]
             diffs[ver] = data["diff"]
 
-    pprint.pprint(totals)  ### DEBUG
-
     sorted_totals = sorted(totals.items())
     sorted_diffs = sorted(diffs.items())
 
     plt.rcParams.update({"font.size": 12})
     fig, ax1 = plt.subplots()
     ax1.set_title(
-        "Number of standard names in the CF conventions table by date", fontsize=18
+        (
+            "Number of Standard Names in the CF Conventions table "
+            "by date and per release"
+        ),
+        fontsize=18,
     )
     # Remove horizontal space between axes
     fig.subplots_adjust(hspace=0)
-    ax1.set_xlabel("Date of table version (marked at Jan 1st)", fontsize=14)
+    ax1.set_xlabel("Date of table version (marked at January 1st)", fontsize=18)
     ax1.tick_params(axis="x", which="minor")
-    ax1.set_ylabel("Total number", fontsize=14)
+    ax1.set_ylabel("Total number", fontsize=18)
     ax1.xaxis.set_minor_locator(AutoMinorLocator(4))
     ax2 = ax1.twinx()
     ax2.set_ylabel(
-        "Difference in total number \nrelative to previous version",
-        fontsize=14,
+        "Difference in total number, relative\nto previous release (log scale)",
+        fontsize=18,
         rotation=270,
         labelpad=35,
     )
-    ###ax2.yaxis.set_minor_locator(AutoMinorLocator(5))
-    # New
     ax2.set_yscale("log")
     ax2.yaxis.set_major_formatter(ScalarFormatter())
 
@@ -178,6 +178,8 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     ax1.yaxis.label.set_color(st.get_color())
     ax1.set_ylim(bottom=0)
 
+    ax1.yaxis.set_major_locator(MultipleLocator(500))
+
     ax2.set_zorder(3)
     dt = ax2.scatter(*zip(*sorted_diffs), s=20)
 
@@ -191,22 +193,25 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
             ax1.annotate(
                 str(ver),
                 xy=(x, y_total),
-                xytext=(x, y_total - 500),
+                xytext=(x, y_total + 200),
                 color="darkgoldenrod",
-                alpha=0.75,
+                alpha=0.6,
                 arrowprops=dict(
+                    arrowstyle="simple",
                     fc="darkgoldenrod",
                     ec="darkgoldenrod",
-                    shrinkA=0.05,
-                    shrinkB=0.05,
-                    alpha=0.75,
+                    shrinkA=0.2,
+                    shrinkB=0.2,
                 ),
+                ha="center",
             )
             # For scatter, circle in the same colour to avoid more arrows
             # which will clutter, tied by having the same colour
             ax2.scatter(
-                x, y_diff,
-                facecolors="none", edgecolors="darkgoldenrod",
+                x,
+                y_diff,
+                facecolors="none",
+                edgecolors="darkgoldenrod",
                 alpha=0.75,
                 linewidth=1.5,
                 s=80,
