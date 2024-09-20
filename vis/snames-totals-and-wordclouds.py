@@ -10,6 +10,7 @@ import matplotlib.dates as dates
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, ScalarFormatter
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
+import numpy as np
 from wordcloud import WordCloud
 
 # Run from root repo dir (or if from 'includes' dir, add initial ".."):
@@ -161,6 +162,8 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         labelpad=35,
     )
     ax2.yaxis.set_minor_locator(AutoMinorLocator(2))
+    # New
+    ax2.set_yscale("log")
 
     ax1.step(
         *zip(*sorted_totals),
@@ -180,14 +183,15 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         linewidth=LINEWIDTH
     )
     ax1.yaxis.label.set_color(st.get_color())
-    ###ax1.set_ylim(0, 5000)
+    ax1.set_ylim(bottom=0)
 
     ax2.set_zorder(3)
-    dt = ax2.stem(*zip(*sorted_diffs), bottom=0)
+    dt = ax2.scatter(*zip(*sorted_diffs), s=20)
 
     # Version label annotation:
     for ver, data in totals_figures.items():
-        if ver % 5 == 0:  # annotate version every 5 versions
+        # Annotate version every 5 versions, also first as core one
+        if ver % 5 == 0 or ver == 1:
             x = convert_date_str(data["date"])
             y_diff = data["diff"]
             y_total = data["total"]
@@ -205,18 +209,14 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
                     alpha=0.75,
                 ),
             )
-            ax2.annotate(
-                "",
-                xy=(x, y_diff),
-                xytext=(x, y_diff + 100),
-                color="darkgoldenrod",
-                arrowprops=dict(
-                    fc="darkgoldenrod",
-                    ec="darkgoldenrod",
-                    shrinkA=1.0,
-                    shrinkB=1.0,
-                    alpha=0.75,
-                ),
+            # For scatter, circle in the same colour to avoid more arrows
+            # which will clutter, tied by having the same colour
+            ax2.scatter(
+                x, y_diff,
+                facecolors="none", edgecolors="darkgoldenrod",
+                alpha=0.75,
+                linewidth=1.5,
+                s=80,
             )
 
     ax2.yaxis.label.set_color("C0")  # default matplotlib blue now
@@ -224,7 +224,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     ax1.tick_params(axis="y", colors=st.get_color())
     ax2.tick_params(axis="y", colors="C0")
 
-    ax2.set_ylim(1, 1400)
+    ax2.set_ylim(bottom=1)
 
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
     plt.show()
