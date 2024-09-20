@@ -21,6 +21,11 @@ XML_STD_NAME_TAG_PATTERN = re.compile(r"<entry id=\"(.+)\">")
 XML_LAST_MODIFIED_PATTERN = re.compile(r"<last_modified>(.+)T(.+)</last_modified>")
 
 
+COLOUR_1 = "dodgerblue"
+COLOUR_2 = "crimson"
+COLOUR_3 = "darkgoldenrod"
+
+
 def get_from_file(pattern, std_name_xml_filename):
     extracted_data = []
     with open(std_name_xml_filename, "rt") as std_name_xml_data:
@@ -175,18 +180,18 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         *zip(*sorted_totals),
         where="post",
         linestyle="-",
-        color="crimson",
+        color=COLOUR_2,
         linewidth=LINEWIDTH,
         zorder=2,
         label="Total number (see left y-axis)",
     )
-    ax1.yaxis.label.set_color("crimson")
+    ax1.yaxis.label.set_color(COLOUR_2)
 
     ax1.yaxis.set_major_locator(MultipleLocator(500))
 
     ax2.set_zorder(3)
     dt = ax2.scatter(
-        *zip(*sorted_diffs), s=20,
+        *zip(*sorted_diffs), s=20, color=COLOUR_1,
         label="Difference in total number (see right y-axis)"
     )
 
@@ -211,12 +216,12 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
                 str(ver),
                 xy=(x, y_total),
                 xytext=(x, y_offset),
-                color="darkgoldenrod",
+                color=COLOUR_3,
                 alpha=0.6,
                 arrowprops=dict(
                     arrowstyle="simple",
-                    fc="darkgoldenrod",
-                    ec="darkgoldenrod",
+                    fc=COLOUR_3,
+                    ec=COLOUR_3,
                     shrinkA=0.2,
                     shrinkB=0.2,
                 ),
@@ -228,7 +233,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
                 x,
                 y_diff,
                 facecolors="none",
-                edgecolors="darkgoldenrod",
+                edgecolors=COLOUR_3,
                 alpha=0.75,
                 linewidth=1.5,
                 s=80,
@@ -239,7 +244,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     final_scatter_item.set_label(
         "Marks every five versions (plus the first) on difference",
     )
-    ax2.yaxis.label.set_color("C0")
+    ax2.yaxis.label.set_color(COLOUR_1)
 
     ax1.set_ylim(bottom=0)
     # symlog specification makes log-scale ticks difficult, so simplest to
@@ -252,8 +257,8 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         list(range(100, 1100, 100)),
         minor=True
     )
-    ax1.tick_params(axis="y", which='both', colors="crimson")
-    ax2.tick_params(axis="y", which='both', colors="C0")
+    ax1.tick_params(axis="y", which='both', colors=COLOUR_2)
+    ax2.tick_params(axis="y", which='both', colors=COLOUR_1)
 
 
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
@@ -334,5 +339,5 @@ pprint.pprint(totals_data)
 make_plot_against_dates(totals_data)
 
 # Inspect & print name differences as list to pass to online vis tool:
-###make_wordcloud(print_version_comparison(12, 11))
-###make_wordcloud(print_version_comparison(49, 48))
+# make_wordcloud(print_version_comparison(12, 11))
+# make_wordcloud(print_version_comparison(49, 48))
