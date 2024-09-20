@@ -143,7 +143,6 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     sorted_diffs = sorted(diffs.items())
 
     plt.rcParams.update({"font.size": 12})
-    # fig, (ax1, ax2) = plt.subplots(2)
     fig, ax1 = plt.subplots()
     ax1.set_title(
         "Number of standard names in the CF conventions table by date", fontsize=18
@@ -163,11 +162,6 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     )
     ax2.yaxis.set_minor_locator(AutoMinorLocator(2))
 
-    axins1 = inset_axes(ax1, width="70%", height="33%", loc="upper left")
-    axins1.yaxis.tick_right()
-
-    axins2 = inset_axes(ax1, width="50%", height="30%", loc="lower right", borderpad=3)
-
     ax1.step(
         *zip(*sorted_totals),
         where="post",
@@ -186,32 +180,10 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         linewidth=LINEWIDTH
     )
     ax1.yaxis.label.set_color(st.get_color())
-    ax1.set_ylim(0, 4500)
-
-    axins2.step(
-        *zip(*sorted_totals),
-        where="post",
-        linestyle="-",
-        color="crimson",
-        alpha=0.4,
-        linewidth=LINEWIDTH
-    )
-
-    axins2.plot(
-        *zip(*sorted_totals),
-        marker=None,
-        linestyle="dashed",
-        color="crimson",
-        linewidth=LINEWIDTH
-    )
-    axins2.set_xlim(datetime(2019, 1, 1, 0, 0), datetime.now())
-    axins2.set_ylim(4300, 4420)
-    # axins2.set_yticklabels([])
-    # axins2.set_xticklabels([])
-    mark_inset(ax1, axins2, loc1=2, loc2=4, fc="none", ec="0.5")
+    ###ax1.set_ylim(0, 5000)
 
     ax2.set_zorder(3)
-    dt = ax2.stem(*zip(*sorted_diffs), use_line_collection=True, bottom=0)
+    dt = ax2.stem(*zip(*sorted_diffs), bottom=0)
 
     # Version label annotation:
     for ver, data in totals_figures.items():
@@ -246,33 +218,6 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
                     alpha=0.75,
                 ),
             )
-            axins1.annotate(
-                "",
-                xy=(x, y_diff),
-                xytext=(x, y_diff + 100),
-                color="darkgoldenrod",
-                arrowprops=dict(
-                    fc="darkgoldenrod",
-                    ec="darkgoldenrod",
-                    shrinkA=1.0,
-                    shrinkB=1.0,
-                    alpha=0.75,
-                ),
-            )
-            axins2.annotate(
-                str(ver),
-                xy=(x, y_total),
-                xytext=(x, y_total - 500),
-                color="darkgoldenrod",
-                alpha=0.75,
-                arrowprops=dict(
-                    fc="darkgoldenrod",
-                    ec="darkgoldenrod",
-                    shrinkA=1.0,
-                    shrinkB=1.0,
-                    alpha=0.75,
-                ),
-            )
 
     ax2.yaxis.label.set_color("C0")  # default matplotlib blue now
 
@@ -280,18 +225,8 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     ax2.tick_params(axis="y", colors="C0")
 
     ax2.set_ylim(1, 1400)
-    # ax2.plot(*zip(*sorted_diffs), 'r.-')
-    axins1.plot(*zip(*sorted_diffs), marker="o", linestyle="None")  # needs string!
-    axins1.set_ylim(1, 1500)
-    axins1.set_yticks([1, 10, 100, 1000])
-    axins1.set_yscale("log")
-    axins1.yaxis.set_major_formatter(ScalarFormatter())
-    axins1.yaxis.label.set_color(st.get_color())
 
-    axins1.set_xlim(datetime(2006, 9, 26, 0, 0), datetime.now())
-
-    axins1.plot()  # fix zorder, when can't use on stem?
-    ###fig.tight_layout()  # otherwise the right y-label is slightly clipped
+    fig.tight_layout()  # otherwise the right y-label is slightly clipped
     plt.show()
 
 
@@ -361,5 +296,5 @@ pprint.pprint(totals_data)
 make_plot_against_dates(totals_data)
 
 # Inspect & print name differences as list to pass to online vis tool:
-make_wordcloud(print_version_comparison(12, 11))
-make_wordcloud(print_version_comparison(49, 48))
+###make_wordcloud(print_version_comparison(12, 11))
+###make_wordcloud(print_version_comparison(49, 48))
