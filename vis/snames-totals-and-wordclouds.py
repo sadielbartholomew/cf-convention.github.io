@@ -239,10 +239,9 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     final_scatter_item.set_label(
         "Marks every five versions (plus the first) on difference",
     )
-    ax2.yaxis.label.set_color("C0")  # default matplotlib blue now
+    ax2.yaxis.label.set_color("C0")
 
     ax1.set_ylim(bottom=0)
-    #ax2.set_ylim(bottom=0)
     # symlog specification makes log-scale ticks difficult, so simplest to
     # explicitly set the minor ticks, like so
     ax2.set_yticks([0, 1, 10, 100, 1000])
@@ -253,9 +252,8 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         list(range(100, 1100, 100)),
         minor=True
     )
-    # TODO NEED MINOR TICKS TO BE BLUE, THEY SEEM TO BE BEING PLOTTED BLACK
-    ax1.tick_params(axis="y", colors="crimson")
-    ax2.tick_params(axis="y", colors="C0")
+    ax1.tick_params(axis="y", which='both', colors="crimson")
+    ax2.tick_params(axis="y", which='both', colors="C0")
 
 
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
