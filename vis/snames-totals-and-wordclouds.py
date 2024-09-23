@@ -25,6 +25,9 @@ COLOUR_1 = "dodgerblue"
 COLOUR_2 = "crimson"
 COLOUR_3 = "darkgoldenrod"
 
+TOTALS_PLOTNAME = "sn_totals_plot"
+WORDCLOUD_PLOTNAME_PREFIX = "sn_wordcloud"
+
 
 def get_from_file(pattern, std_name_xml_filename):
     extracted_data = []
@@ -135,7 +138,6 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
 
     totals_figures = pre_process(totals_figures)
     totals_figures = calculate_difference_totals(totals_figures)
-    pprint.pprint(totals_figures)
 
     totals = {}
     diffs = {}
@@ -151,7 +153,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     sorted_diffs = sorted(diffs.items())
 
     plt.rcParams.update({"font.size": 12})
-    fig, ax1 = plt.subplots()
+    fig, ax1 = plt.subplots(figsize=(14, 9))
     ax1.set_title(
         (
             "Number of CF Conventions Standard Names in the table "
@@ -242,7 +244,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     # Set the labelling for the legend only one scatter item for the
     # every 5 version markers, to avoid duplicate legend items
     final_scatter_item.set_label(
-        "Marks every five versions (plus the first) on difference",
+        "(with matching arrow) Marks every five versions (plus the first)",
     )
     ax2.yaxis.label.set_color(COLOUR_1)
 
@@ -270,6 +272,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         lines + lines2, labels + labels2, loc="upper left", fontsize=14,
     )
 
+    plt.savefig(TOTALS_PLOTNAME)
     plt.show()
 
 
@@ -322,11 +325,18 @@ def print_version_comparison(newer_version, older_version):
     return " ".join(names_spaced)
 
 
-def make_wordcloud(text):
+def make_wordcloud(version_range_end, version_range_start=1):
     """Create wordcloud for version differences in standard names."""
+    text = print_version_comparison(version_range_end, version_range_start)
+
     wordcloud = WordCloud(background_color="white").generate(text)
     plt.imshow(wordcloud, interpolation="bilinear")
     plt.axis("off")
+    plt.tight_layout()
+
+    plt.savefig(
+        f"{WORDCLOUD_PLOTNAME_PREFIX}_versions"
+        f"{version_range_start}_to_{version_range_end}")
     plt.show()
 
 
@@ -334,10 +344,10 @@ totals_data = get_all_std_names_per_version(STD_NAME_ROOT_DIR_RELATIVE_PATH)
 
 # Raw/crude table of totals per version:
 pprint.pprint(totals_data)
-
-# Nicer in a plot:
+# Plot of totals
 make_plot_against_dates(totals_data)
 
-# Inspect & print name differences as list to pass to online vis tool:
-# make_wordcloud(print_version_comparison(12, 11))
-# make_wordcloud(print_version_comparison(49, 48))
+# Word clouds of new news added in a given version range, or for full table
+make_wordcloud(12, 11)
+make_wordcloud(49, 48)
+make_wordcloud(86)
