@@ -11,7 +11,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, ScalarFormatter, MultipleLocator
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 import numpy as np
-from wordcloud import WordCloud
+from PIL import Image
+from wordcloud import WordCloud, ImageColorGenerator
+
 
 # Run from root repo dir (or if from 'includes' dir, add initial ".."):
 STD_NAME_ROOT_DIR_RELATIVE_PATH = os.path.join("Data", "cf-standard-names")
@@ -27,6 +29,8 @@ COLOUR_3 = "darkgoldenrod"
 
 TOTALS_PLOTNAME = "sn_totals_plot"
 WORDCLOUD_PLOTNAME_PREFIX = "sn_wordcloud"
+
+PWD = os.path.dirname(__file__)
 
 
 def get_from_file(pattern, std_name_xml_filename):
@@ -153,7 +157,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     sorted_diffs = sorted(diffs.items())
 
     plt.rcParams.update({"font.size": 12})
-    fig, ax1 = plt.subplots(figsize=(14, 9))
+    fig, ax1 = plt.subplots(figsize=(12, 10))
     ax1.set_title(
         (
             "Number of CF Conventions Standard Names in the table "
@@ -163,16 +167,16 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     )
     # Remove horizontal space between axes
     fig.subplots_adjust(hspace=0)
-    ax1.set_xlabel("Date, marked each year at January 1st", fontsize=16)
+    ax1.set_xlabel("Date, marked each year at January 1st", fontsize=17)
     ax1.tick_params(axis="x", which="minor")
-    ax1.set_ylabel("Total number of names", fontsize=16)
+    ax1.set_ylabel("Total number of names", fontsize=17)
     ax1.xaxis.set_minor_locator(AutoMinorLocator(4))
     ax2 = ax1.twinx()
     ax2.set_ylabel(
-        "Difference in total number of names,\n relative to previous version (log scale)",
+        "Difference in total number of names relative to previous version (log scale)",
         fontsize=16,
         rotation=270,
-        labelpad=40,
+        labelpad=20,
     )
     # Use 'symlog' not 'log' so we can include zero values
     ax2.set_yscale("symlog")
@@ -184,7 +188,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
         linestyle="-",
         color=COLOUR_2,
         linewidth=LINEWIDTH,
-        zorder=2,
+        zorder=1000,  # ensure in foreground to everything except scatter plot
         label="Total number (see left y-axis)",
     )
     ax1.yaxis.label.set_color(COLOUR_2)
@@ -193,8 +197,10 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
 
     ax2.set_zorder(3)
     dt = ax2.scatter(
-        *zip(*sorted_diffs), s=20, color=COLOUR_1,
-        label="Difference in total number (see right y-axis)"
+        *zip(*sorted_diffs),
+        s=20,
+        color=COLOUR_1,
+        label="Difference in total number (see right y-axis)",
     )
 
     # Version label annotation:
@@ -239,12 +245,13 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
                 alpha=0.75,
                 linewidth=1.5,
                 s=80,
+                zorder=1001,  # ensure at the very front, even to step plot
             )
 
     # Set the labelling for the legend only one scatter item for the
     # every 5 version markers, to avoid duplicate legend items
     final_scatter_item.set_label(
-        "(with matching arrow) Marks every five versions (plus the first)",
+        "Marks every five versions (plus the first) on difference",
     )
     ax2.yaxis.label.set_color(COLOUR_1)
 
@@ -253,15 +260,16 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     # explicitly set the minor ticks, like so
     ax2.set_yticks([0, 1, 10, 100, 1000])
     ax2.set_yticks(
-        [0,] +
-        list(range(1, 10)) +
-        list(range(10, 100, 10)) +
-        list(range(100, 1100, 100)),
-        minor=True
+        [
+            0,
+        ]
+        + list(range(1, 10))
+        + list(range(10, 100, 10))
+        + list(range(100, 1100, 100)),
+        minor=True,
     )
-    ax1.tick_params(axis="y", which='both', colors=COLOUR_2)
-    ax2.tick_params(axis="y", which='both', colors=COLOUR_1)
-
+    ax1.tick_params(axis="y", which="both", colors=COLOUR_2)
+    ax2.tick_params(axis="y", which="both", colors=COLOUR_1)
 
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
@@ -269,10 +277,21 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(
-        lines + lines2, labels + labels2, loc="upper left", fontsize=14,
+        lines
+        + lines2
+        + [
+            final_annotation.arrow_patch,
+        ],
+        labels
+        + labels2
+        + [
+            "Labels every five versions (plus the first) on total",
+        ],
+        loc="upper left",
+        fontsize=14,
     )
 
-    plt.savefig(TOTALS_PLOTNAME)
+    plt.savefig(os.path.join(PWD, TOTALS_PLOTNAME))
     plt.show()
 
 
@@ -329,14 +348,40 @@ def make_wordcloud(version_range_end, version_range_start=1):
     """Create wordcloud for version differences in standard names."""
     text = print_version_comparison(version_range_end, version_range_start)
 
-    wordcloud = WordCloud(background_color="white").generate(text)
-    plt.imshow(wordcloud, interpolation="bilinear")
+    # Define a Robinson projection shape to use as the wordcloud outline shape
+    image_shape = np.array(
+        Image.open(
+            os.path.join(PWD, "robinson_proj_shape_cartopy.png"))
+    )
+
+    wordcloud = WordCloud(
+        width=800,
+        height=400,
+        background_color="white",
+        # Use an earth-like colour scheme for geoscience scope
+        colormap="gist_earth",  # gist_earth",
+        mask=image_shape,
+        ###background_color="rgba(255, 255, 255, 0)", mode="RGBA",
+    ).generate(text)
+
+    #### create coloring from image
+    ###image_colors = ImageColorGenerator(image_coloring)
+
+    plt.imshow(
+        wordcloud,  # .recolor(color_func=image_shape),
+        interpolation="bilinear",
+    )
     plt.axis("off")
     plt.tight_layout()
 
     plt.savefig(
-        f"{WORDCLOUD_PLOTNAME_PREFIX}_versions"
-        f"{version_range_start}_to_{version_range_end}")
+        os.path.join(
+            PWD,
+            f"{WORDCLOUD_PLOTNAME_PREFIX}_versions"
+            f"{version_range_start}_to_{version_range_end}"
+        ),
+        dpi=1000,
+    )
     plt.show()
 
 
