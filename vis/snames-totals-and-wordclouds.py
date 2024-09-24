@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from copy import deepcopy
 import os
 import pprint
 import re
@@ -17,11 +18,10 @@ from wordcloud import WordCloud, ImageColorGenerator
 
 # Run from root repo dir (or if from 'includes' dir, add initial ".."):
 STD_NAME_ROOT_DIR_RELATIVE_PATH = os.path.join("Data", "cf-standard-names")
-
+PWD = os.path.dirname(__file__)
 
 XML_STD_NAME_TAG_PATTERN = re.compile(r"<entry id=\"(.+)\">")
 XML_LAST_MODIFIED_PATTERN = re.compile(r"<last_modified>(.+)T(.+)</last_modified>")
-
 
 COLOUR_1 = "dodgerblue"
 COLOUR_2 = "crimson"
@@ -30,10 +30,9 @@ COLOUR_3 = "darkgoldenrod"
 TOTALS_PLOTNAME = "sn_totals_plot"
 WORDCLOUD_PLOTNAME_PREFIX = "sn_wordcloud"
 
-PWD = os.path.dirname(__file__)
-
 
 def get_from_file(pattern, std_name_xml_filename):
+    """TODO."""
     extracted_data = []
     with open(std_name_xml_filename, "rt") as std_name_xml_data:
         for line in std_name_xml_data:
@@ -44,6 +43,7 @@ def get_from_file(pattern, std_name_xml_filename):
 
 
 def get_total_per_version(std_names_list):
+    """TODO."""
     return len(std_names_list)
 
 
@@ -60,6 +60,7 @@ def extract_xml_by_version_from_std_name_dir(std_name_dir):
 
 
 def get_all_std_names_per_version(root_dir, return_names=False):
+    """TODO."""
     totals = {}
     names = {}
     xml_loc_per_version = extract_xml_by_version_from_std_name_dir(root_dir)
@@ -87,23 +88,30 @@ def get_all_std_names_per_version(root_dir, return_names=False):
 
 
 def calculate_difference_totals(totals_data):
-    totals_with_diff_data = dict(totals_data)  # copy taking care with mutables
+    """TODO."""
+    # Copy to ensure original dictionary isn't changed in-place here
+    totals_with_diff_data = deepcopy(totals_data)
+
     totals_with_diff_data[1].update({"diff": 0})
     for ver, data in totals_data.items():
         if ver == 1:
             continue
         else:
             try:
-                previous_ver_data = totals_data[ver - 1]
+                previous_ver_data = totals_with_diff_data[ver - 1]
             except KeyError:  # account for case of v39 (v38 was skipped)
-                previous_ver_data = totals_data[ver - 2]
+                previous_ver_data = totals_with_diff_data[ver - 2]
             totals_with_diff_data[ver].update(
                 {"diff": data["total"] - previous_ver_data["total"]}
             )
     return totals_with_diff_data
 
 
-def process_current(totals_figures):
+def process_current(totals):
+    """TODO."""
+    # Copy to ensure original dictionary isn't changed in-place here
+    totals_figures = deepcopy(totals)
+
     # Convert versions to integers for plotting:
     current_data = totals_figures["current"]
     totals_figures = {
@@ -112,33 +120,41 @@ def process_current(totals_figures):
     # Convert current to assumed latest version, for plotting version as int:
     highest_vesion = max(totals_figures.keys())
     assume_current_version = highest_vesion + 1
-    totals_figures[assume_current_version] = current_data
-    return totals_figures
+
+    # New dict
+    processed_totals = totals_figures.copy()
+    processed_totals[assume_current_version] = current_data
+    return processed_totals
 
 
-def pre_process(all_totals_data):
+def pre_process(all_totals):
     """Any processing on the raw data required pre-plot."""
+    # Copy to ensure original dictionary isn't changed in-place here
+    all_totals_data = deepcopy(all_totals)
+    
     # Convert 'current' to latest version number (assumed)
-    all_totals_data = process_current(all_totals_data)
+    pre_procd_totals = process_current(all_totals_data)
 
     # Convert version strings to integers so they become plotable
-    all_totals_data = {int(ver): data for ver, data in all_totals_data.items()}
+    pre_procd_totals = {int(ver): data for ver, data in pre_procd_totals.items()}
 
     # Version 23 date issue, remove extra character that shouldn't be there:
-    date_v23 = all_totals_data[23]["date"]
-    all_totals_data[23]["date"] = date_v23.strip(":")
+    date_v23 = pre_procd_totals[23]["date"]
+    pre_procd_totals[23]["date"] = date_v23.strip(":")
 
     # Get diffs:
-    all_totals_data = calculate_difference_totals(all_totals_data)
+    pre_procd_totals = calculate_difference_totals(pre_procd_totals)
 
-    return all_totals_data
+    return pre_procd_totals
 
 
 def convert_date_str(date_str):
+    """TODO."""
     return datetime.strptime(date_str, "%Y-%m-%d")
 
 
 def make_raw_and_difference_plot(totals_figures, by_date=True):
+    """TODO."""
     LINEWIDTH = 3
 
     totals_figures = pre_process(totals_figures)
@@ -297,16 +313,19 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
 
 
 def make_plot_against_dates(totals_figures):
+    """TODO."""
     make_raw_and_difference_plot(totals_figures)
 
 
 def make_plot_against_versions(totals_figures):
+    """TODO."""
     make_raw_and_difference_plot(totals_figures, by_date=False)
 
 
 def get_new_names(
     all_std_names_per_version, newer_version, older_version, print_on=False
 ):
+    """TODO."""
     newer_set = set(all_std_names_per_version[str(newer_version)])
     older_set = set(all_std_names_per_version[str(older_version)])
     difference = list(newer_set.difference(older_set))
@@ -323,6 +342,7 @@ def get_new_names(
 
 
 def convert_underscored_phrase_to_words(all_names_list):
+    """TODO."""
     name_phrase_list = []
     for name in all_names_list:
         phrase = name.replace("_", " ")
@@ -332,6 +352,7 @@ def convert_underscored_phrase_to_words(all_names_list):
 
 def print_version_comparison(
         newer_version, older_version, print_totals_only=True):
+    """TODO."""
     new_names = get_new_names(
         get_all_std_names_per_version(
             STD_NAME_ROOT_DIR_RELATIVE_PATH, return_names=True
@@ -400,19 +421,25 @@ def make_wordcloud(
     plt.show()
 
 
-totals_data = get_all_std_names_per_version(STD_NAME_ROOT_DIR_RELATIVE_PATH)
-diff_data = calculate_difference_totals(pre_process(totals_data))
+def main():
+    """TODO."""
+    totals_data = get_all_std_names_per_version(STD_NAME_ROOT_DIR_RELATIVE_PATH)
+    diff_data = calculate_difference_totals(pre_process(totals_data))
 
-# State figures
-print("Totals:")
-pprint.pprint(totals_data)
-print("Differences:")
-pprint.pprint(diff_data)
+    # State figures
+    print("Totals:")
+    pprint.pprint(totals_data)
+    print("Totals and differences:")
+    pprint.pprint(diff_data)
 
-# Plot of totals and differences together
-make_plot_against_dates(totals_data)
+    # Plot of totals and differences together
+    make_plot_against_dates(totals_data)
 
-# Word clouds of new news added in a given version range, or for full table
-make_wordcloud(12)
-make_wordcloud(49)
-make_wordcloud(86, print_totals_only=False)
+    # Word clouds of new news added in a given version range, or for full table
+    make_wordcloud(12)
+    make_wordcloud(49)
+    make_wordcloud(86, print_totals_only=False)
+
+
+if __name__ == "__main__":
+    main()
