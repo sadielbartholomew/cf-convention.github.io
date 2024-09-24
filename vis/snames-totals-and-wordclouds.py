@@ -72,7 +72,8 @@ def get_all_std_names_per_version(root_dir, return_names=False):
             except:
                 print(
                     f"WARNING: for version {version} from {filename} could "
-                    "not get date, so assumed and registered with v1.0 date."
+                    "not get date, so assumed and registered with a known "
+                    "date for version 1."
                 )
                 # No timestamp on v1, so assume from v1.0 of CF, Oct 2003 (see
                 # http://cfconventions.org/faq.html#when_started)
@@ -311,11 +312,11 @@ def get_new_names(
     difference = list(newer_set.difference(older_set))
 
     if print_on:
-        print("new:")
+        print("New names:")
         pprint.pprint(newer_set)
-        print("\n\nold:")
+        print("\n\nOld names:")
         pprint.pprint(newer_set)
-        print("\n\nadded since older:")
+        print("\n\nAdded names from new to old versions:")
         pprint.pprint(difference)
 
     return difference
@@ -329,7 +330,8 @@ def convert_underscored_phrase_to_words(all_names_list):
     return name_phrase_list
 
 
-def print_version_comparison(newer_version, older_version):
+def print_version_comparison(
+        newer_version, older_version, print_totals_only=True):
     new_names = get_new_names(
         get_all_std_names_per_version(
             STD_NAME_ROOT_DIR_RELATIVE_PATH, return_names=True
@@ -337,16 +339,33 @@ def print_version_comparison(newer_version, older_version):
         newer_version,
         older_version,
     )
-    print("\n\n\n", "-" * 15, "New to v%s" % str(newer_version), "-" * 15, "\n\n\n")
     names_spaced = convert_underscored_phrase_to_words(new_names)
-    for sname in names_spaced:
-        print(sname)
+
+    if print_totals_only:
+        print(
+            f"For {newer_version} to {older_version}, {len(new_names)} "
+            f"new names added."
+        )
+    else:
+        print(
+            f"For {newer_version} to {older_version}, names added are:\n"
+            f"{'\n'.join(names_spaced)}"
+        )
+
     return " ".join(names_spaced)
 
 
-def make_wordcloud(version_range_end, version_range_start=1):
+def make_wordcloud(
+        newer_version, older_version=False, print_totals_only=True):
     """Create wordcloud for version differences in standard names."""
-    text = print_version_comparison(version_range_end, version_range_start)
+    # If no older version specified, make it the one before set newer version
+    if not older_version:
+        older_version = newer_version - 1
+
+    text = print_version_comparison(
+        newer_version, older_version,
+        print_totals_only=print_totals_only,
+    )
 
     # Define a Robinson projection shape to use as the wordcloud outline shape
     image_shape = np.array(
@@ -359,16 +378,12 @@ def make_wordcloud(version_range_end, version_range_start=1):
         height=400,
         background_color="white",
         # Use an earth-like colour scheme for geoscience scope
-        colormap="gist_earth",  # gist_earth",
+        colormap="gist_earth",
         mask=image_shape,
-        ###background_color="rgba(255, 255, 255, 0)", mode="RGBA",
     ).generate(text)
 
-    #### create coloring from image
-    ###image_colors = ImageColorGenerator(image_coloring)
-
     plt.imshow(
-        wordcloud,  # .recolor(color_func=image_shape),
+        wordcloud,
         interpolation="bilinear",
     )
     plt.axis("off")
@@ -378,7 +393,7 @@ def make_wordcloud(version_range_end, version_range_start=1):
         os.path.join(
             PWD,
             f"{WORDCLOUD_PLOTNAME_PREFIX}_versions"
-            f"{version_range_start}_to_{version_range_end}"
+            f"{older_version}_to_{newer_version}"
         ),
         dpi=1000,
     )
@@ -386,13 +401,18 @@ def make_wordcloud(version_range_end, version_range_start=1):
 
 
 totals_data = get_all_std_names_per_version(STD_NAME_ROOT_DIR_RELATIVE_PATH)
+diff_data = calculate_difference_totals(pre_process(totals_data))
 
-# Raw/crude table of totals per version:
+# State figures
+print("Totals:")
 pprint.pprint(totals_data)
-# Plot of totals
+print("Differences:")
+pprint.pprint(diff_data)
+
+# Plot of totals and differences together
 make_plot_against_dates(totals_data)
 
 # Word clouds of new news added in a given version range, or for full table
-make_wordcloud(12, 11)
-make_wordcloud(49, 48)
-make_wordcloud(86)
+make_wordcloud(12)
+make_wordcloud(49)
+make_wordcloud(86, print_totals_only=False)
