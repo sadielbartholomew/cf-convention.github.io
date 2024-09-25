@@ -7,7 +7,8 @@ import pprint
 import re
 from datetime import datetime
 
-
+import matplotlib.cm as cm
+import matplotlib.colors as mcol
 import matplotlib.dates as dates
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, ScalarFormatter, MultipleLocator
@@ -426,12 +427,19 @@ def make_wordcloud(newer_version, older_version=False, print_totals_only=True):
         Image.open(os.path.join(PWD, "robinson_proj_shape_cartopy.png"))
     )
 
+    # The earth-like colour maps have white in them which means occasionally
+    # text will be added which is close to white in colour and therefore not
+    # readable, so cut off the white end of the colour map (via 0.2 - 1 range)
+    lv_tmp = np.linspace(0.0, 0.9, 100)
+    cm_tmp = cm.gist_earth(lv_tmp)
+    new_cmap = mcol.ListedColormap(cm_tmp)
+
     wordcloud = WordCloud(
         width=800,
         height=400,
         background_color="white",
         # Use an earth-like colour scheme to match the geoscience scope
-        colormap="gist_earth",
+        colormap=new_cmap,
         mask=image_shape,
     ).generate(names_with_newline_delim)
 
