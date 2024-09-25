@@ -7,10 +7,12 @@ import pprint
 import re
 from datetime import datetime
 
+
 import matplotlib.dates as dates
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, ScalarFormatter, MultipleLocator
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
+
 import numpy as np
 from PIL import Image
 from wordcloud import WordCloud, ImageColorGenerator
@@ -59,10 +61,12 @@ def extract_xml_by_version_from_std_name_dir(std_name_dir):
     return all_xml_file_paths
 
 
-def get_all_std_names_per_version(root_dir, return_names=False):
+def get_all_std_names_per_version(return_names=False):
     """TODO."""
+    root_dir = STD_NAME_ROOT_DIR_RELATIVE_PATH
     totals = {}
     names = {}
+
     xml_loc_per_version = extract_xml_by_version_from_std_name_dir(root_dir)
     for version, filename in xml_loc_per_version.items():
         names_in_version = get_from_file(XML_STD_NAME_TAG_PATTERN, filename)
@@ -82,6 +86,7 @@ def get_all_std_names_per_version(root_dir, return_names=False):
             totals[version] = {"total": total, "date": date}
         else:
             names[version] = names_in_version
+
     if return_names:
         return names
     return totals
@@ -92,14 +97,17 @@ def calculate_difference_totals(totals_data):
     # Copy to ensure original dictionary isn't changed in-place here
     totals_with_diff_data = deepcopy(totals_data)
 
-    totals_with_diff_data[1].update({"diff": 0})
+    totals_with_diff_data[1].update({"diff": None})
     for ver, data in totals_data.items():
         if ver == 1:
+            # No previous version in this case, so keep as None signalling
+            # to skip in scatter plot
             continue
         else:
             try:
                 previous_ver_data = totals_with_diff_data[ver - 1]
             except KeyError:  # account for case of v39 (v38 was skipped)
+                print("KEY ERROR HAPPENS HERE")
                 previous_ver_data = totals_with_diff_data[ver - 2]
             totals_with_diff_data[ver].update(
                 {"diff": data["total"] - previous_ver_data["total"]}
@@ -121,31 +129,22 @@ def process_current(totals):
     highest_vesion = max(totals_figures.keys())
     assume_current_version = highest_vesion + 1
 
-    # New dict
-    processed_totals = totals_figures.copy()
-    processed_totals[assume_current_version] = current_data
-    return processed_totals
+    totals_figures[assume_current_version] = current_data
+    return totals_figures
 
 
 def pre_process(all_totals):
     """Any processing on the raw data required pre-plot."""
     # Copy to ensure original dictionary isn't changed in-place here
     all_totals_data = deepcopy(all_totals)
-    
+
     # Convert 'current' to latest version number (assumed)
     pre_procd_totals = process_current(all_totals_data)
 
     # Convert version strings to integers so they become plotable
     pre_procd_totals = {int(ver): data for ver, data in pre_procd_totals.items()}
 
-    # Version 23 date issue, remove extra character that shouldn't be there:
-    date_v23 = pre_procd_totals[23]["date"]
-    pre_procd_totals[23]["date"] = date_v23.strip(":")
-
-    # Get diffs:
-    pre_procd_totals = calculate_difference_totals(pre_procd_totals)
-
-    return pre_procd_totals
+    return calculate_difference_totals(pre_procd_totals)
 
 
 def convert_date_str(date_str):
@@ -153,16 +152,13 @@ def convert_date_str(date_str):
     return datetime.strptime(date_str, "%Y-%m-%d")
 
 
-def make_raw_and_difference_plot(totals_figures, by_date=True):
+def make_raw_and_difference_plot(diff_data, by_date=True):
     """TODO."""
     LINEWIDTH = 3
 
-    totals_figures = pre_process(totals_figures)
-    totals_figures = calculate_difference_totals(totals_figures)
-
     totals = {}
     diffs = {}
-    for ver, data in totals_figures.items():
+    for ver, data in diff_data.items():
         if by_date:
             totals[convert_date_str(data["date"])] = data["total"]
             diffs[convert_date_str(data["date"])] = data["diff"]
@@ -221,7 +217,7 @@ def make_raw_and_difference_plot(totals_figures, by_date=True):
     )
 
     # Version label annotation:
-    for ver, data in totals_figures.items():
+    for ver, data in diff_data.items():
         # Annotate version every 5 versions, also first as core one
         if ver % 5 == 0 or ver == 1:
             # Annotations above with arrows pointing down mostly, to avoid
@@ -322,23 +318,56 @@ def make_plot_against_versions(totals_figures):
     make_raw_and_difference_plot(totals_figures, by_date=False)
 
 
-def get_new_names(
+def get_new_and_removed_names(
     all_std_names_per_version, newer_version, older_version, print_on=False
 ):
     """TODO."""
     newer_set = set(all_std_names_per_version[str(newer_version)])
-    older_set = set(all_std_names_per_version[str(older_version)])
-    difference = list(newer_set.difference(older_set))
+
+    # Take empty set for the non-existing version before the first
+    if older_version == 0:
+        older_set = {}
+    else:
+        older_set = set(all_std_names_per_version[str(older_version)])
+
+    new_names = list(newer_set.difference(older_set))
+
+    # In namy cases, some names are deprecated so the 'diff' number D
+    # is equal to (not just) the number of new names added NA but reflects
+    # also the old names removed OR too: D = NA - OR
+    old_names_removed = list(older_set.difference(newer_set))
+    for item in older_set:
+        if item not in newer_set:
+            print(
+                "NOTE: some old names were removed from version "
+                f"{older_version} to {newer_version} so the "
+                "'diff' number is not equal to the amount of new "
+                "names added."
+            )
+            break
 
     if print_on:
-        print("New names:")
-        pprint.pprint(newer_set)
-        print("\n\nOld names:")
-        pprint.pprint(newer_set)
-        print("\n\nAdded names from new to old versions:")
-        pprint.pprint(difference)
+        # To DEBUG:
+        # newer_set_sort = list(newer_set)
+        # newer_set_sort.sort()
+        # older_set_sort = list(older_set)
+        # older_set_sort.sort()
+        na_sort = list(new_names)
+        na_sort.sort()
+        or_sort = list(old_names_removed)
+        or_sort.sort()
 
-    return difference
+        print("\nAdded names from new to old versions:")
+        pprint.pprint(na_sort)
+        print("\nRemoved names from new to old versions:")
+        pprint.pprint(or_sort)
+        print(
+            f"Totals are: {len(new_names)} new, {len(old_names_removed)} "
+            "old names removed and therefore a diff of "
+            f"{len(new_names) - len(old_names_removed)}"
+        )
+
+    return new_names, old_names_removed
 
 
 def convert_underscored_phrase_to_words(all_names_list):
@@ -350,58 +379,61 @@ def convert_underscored_phrase_to_words(all_names_list):
     return name_phrase_list
 
 
-def print_version_comparison(
-        newer_version, older_version, print_totals_only=True):
+def print_version_comparison(newer_version, older_version, print_totals_only=True):
     """TODO."""
-    new_names = get_new_names(
-        get_all_std_names_per_version(
-            STD_NAME_ROOT_DIR_RELATIVE_PATH, return_names=True
-        ),
+    # SADIE
+    all_names = get_all_std_names_per_version(return_names=True)
+
+    added_names, removed_names = get_new_and_removed_names(
+        all_names,
         newer_version,
         older_version,
+        print_on=False,
     )
-    names_spaced = convert_underscored_phrase_to_words(new_names)
+    added_names_spaced = convert_underscored_phrase_to_words(added_names)
 
     if print_totals_only:
         print(
-            f"For {newer_version} to {older_version}, {len(new_names)} "
-            f"new names added."
+            f"Between {older_version} and {newer_version}, {len(added_names)} "
+            f"new names added and {len(removed_names)} removed."
         )
     else:
+        removed_names_spaced = convert_underscored_phrase_to_words(removed_names)
         print(
-            f"For {newer_version} to {older_version}, names added are:\n"
-            f"{'\n'.join(names_spaced)}"
+            f"For {older_version} to {newer_version}, names added are:\n"
+            f"{'\n'.join(added_names_spaced)} and names removed are"
+            f"{'\n'.join(removed_names_spaced)}."
         )
 
-    return " ".join(names_spaced)
+    return added_names_spaced
 
 
-def make_wordcloud(
-        newer_version, older_version=False, print_totals_only=True):
+def make_wordcloud(newer_version, older_version=False, print_totals_only=True):
     """Create wordcloud for version differences in standard names."""
     # If no older version specified, make it the one before set newer version
     if not older_version:
         older_version = newer_version - 1
 
-    text = print_version_comparison(
-        newer_version, older_version,
+    names = print_version_comparison(
+        newer_version,
+        older_version,
         print_totals_only=print_totals_only,
     )
+    names_with_newline_delim = "\n".join(names)
 
     # Define a Robinson projection shape to use as the wordcloud outline shape
     image_shape = np.array(
-        Image.open(
-            os.path.join(PWD, "robinson_proj_shape_cartopy.png"))
+        Image.open(os.path.join(PWD, "robinson_proj_shape_cartopy.png"))
     )
 
     wordcloud = WordCloud(
         width=800,
         height=400,
         background_color="white",
-        # Use an earth-like colour scheme for geoscience scope
+        # Use an earth-like colour scheme to match the geoscience scope
         colormap="gist_earth",
         mask=image_shape,
-    ).generate(text)
+    ).generate(names_with_newline_delim)
 
     plt.imshow(
         wordcloud,
@@ -414,7 +446,7 @@ def make_wordcloud(
         os.path.join(
             PWD,
             f"{WORDCLOUD_PLOTNAME_PREFIX}_versions"
-            f"{older_version}_to_{newer_version}"
+            f"{older_version}_to_{newer_version}",
         ),
         dpi=1000,
     )
@@ -423,7 +455,7 @@ def make_wordcloud(
 
 def main():
     """TODO."""
-    totals_data = get_all_std_names_per_version(STD_NAME_ROOT_DIR_RELATIVE_PATH)
+    totals_data = get_all_std_names_per_version()
     diff_data = calculate_difference_totals(pre_process(totals_data))
 
     # State figures
@@ -433,12 +465,13 @@ def main():
     pprint.pprint(diff_data)
 
     # Plot of totals and differences together
-    make_plot_against_dates(totals_data)
+    make_plot_against_dates(diff_data)
 
-    # Word clouds of new news added in a given version range, or for full table
+    # Using some random versions as exmaples:
     make_wordcloud(12)
     make_wordcloud(49)
-    make_wordcloud(86, print_totals_only=False)
+    make_wordcloud(86)
+    make_wordcloud(86, 1)
 
 
 if __name__ == "__main__":
