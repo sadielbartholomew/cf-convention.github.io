@@ -1,6 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+Visualisations of the CF Standard Names as parsed per version from source XML.
+
+This code enables generation of:
+* a plot of total number of names by date and per version which can be re-run
+  to pick up any new versions added and therefore be updated whenever useful;
+* word clouds showing a word cloud visualisation of the set of names added
+  between two given versions, so for example all new names added at a given
+  version relative to the last one, or the full table if version 1 is
+  specified as the older version.
+
+Original code written by Sadie L. Bartholomew, first iteration 2020 and
+updated 2024 for addition to the cf-convention/cf-convention.github.io
+code repository, for ultimate use to display visualisations on the website.
+For question regarding this code, plese contact sadie.bartholomew@ncas.ac.uk.
+
+"""
+
+
 from copy import deepcopy
 import os
 import pprint
@@ -21,7 +40,7 @@ from wordcloud import WordCloud, ImageColorGenerator
 
 # Run from root repo dir (or if from 'includes' dir, add initial ".."):
 STD_NAME_ROOT_DIR_RELATIVE_PATH = os.path.join("Data", "cf-standard-names")
-PWD = os.path.dirname(__file__)
+SAVE_DIR = "generated_vis_images"
 
 XML_STD_NAME_TAG_PATTERN = re.compile(r"<entry id=\"(.+)\">")
 XML_LAST_MODIFIED_PATTERN = re.compile(r"<last_modified>(.+)T(.+)</last_modified>")
@@ -35,18 +54,19 @@ WORDCLOUD_PLOTNAME_PREFIX = "sn_wordcloud"
 
 
 def get_from_file(pattern, std_name_xml_filename):
-    """TODO."""
+    """Extract information given a pattern from a standard names XML file."""
     extracted_data = []
     with open(std_name_xml_filename, "rt") as std_name_xml_data:
         for line in std_name_xml_data:
             full_pattern_result = pattern.search(line)
             if full_pattern_result:
                 extracted_data.append(full_pattern_result.group(1).rstrip("\n"))
+
     return extracted_data
 
 
 def get_total_per_version(std_names_list):
-    """TODO."""
+    """Get the total number of standard names from a given list of them."""
     return len(std_names_list)
 
 
@@ -63,7 +83,7 @@ def extract_xml_by_version_from_std_name_dir(std_name_dir):
 
 
 def get_all_std_names_per_version(return_names=False):
-    """TODO."""
+    """Get the full list of standard names included in a given version."""
     root_dir = STD_NAME_ROOT_DIR_RELATIVE_PATH
     totals = {}
     names = {}
@@ -94,7 +114,7 @@ def get_all_std_names_per_version(return_names=False):
 
 
 def calculate_difference_totals(totals_data):
-    """TODO."""
+    """Find and register the difference in total to the previous version."""
     # Copy to ensure original dictionary isn't changed in-place here
     totals_with_diff_data = deepcopy(totals_data)
 
@@ -108,7 +128,6 @@ def calculate_difference_totals(totals_data):
             try:
                 previous_ver_data = totals_with_diff_data[ver - 1]
             except KeyError:  # account for case of v39 (v38 was skipped)
-                print("KEY ERROR HAPPENS HERE")
                 previous_ver_data = totals_with_diff_data[ver - 2]
             totals_with_diff_data[ver].update(
                 {"diff": data["total"] - previous_ver_data["total"]}
@@ -117,14 +136,15 @@ def calculate_difference_totals(totals_data):
 
 
 def process_current(totals):
-    """TODO."""
+    """Process the current i.e latest version of the standard names table."""
     # Copy to ensure original dictionary isn't changed in-place here
     totals_figures = deepcopy(totals)
 
     # Convert versions to integers for plotting:
     current_data = totals_figures["current"]
     totals_figures = {
-        int(ver): data for ver, data in totals_figures.items() if ver != "current"
+        int(ver): data for ver, data in totals_figures.items()
+        if ver != "current"
     }
     # Convert current to assumed latest version, for plotting version as int:
     highest_vesion = max(totals_figures.keys())
@@ -149,12 +169,12 @@ def pre_process(all_totals):
 
 
 def convert_date_str(date_str):
-    """TODO."""
+    """Convert a general datetime string to a YYYY-MM-DD format."""
     return datetime.strptime(date_str, "%Y-%m-%d")
 
 
-def make_raw_and_difference_plot(diff_data, by_date=True):
-    """TODO."""
+def make_totals_and_differences_plot(diff_data, by_date=True):
+    """Make plot of total number and difference of standard names over time."""
     LINEWIDTH = 3
 
     totals = {}
@@ -305,29 +325,29 @@ def make_raw_and_difference_plot(diff_data, by_date=True):
         fontsize=14,
     )
 
-    plt.savefig(os.path.join(PWD, TOTALS_PLOTNAME))
+    plt.savefig(os.path.join(SAVE_DIR, TOTALS_PLOTNAME))
     plt.show()
 
 
 def make_plot_against_dates(totals_figures):
-    """TODO."""
-    make_raw_and_difference_plot(totals_figures)
+    """Make plot of numbers of standard names over time against date only."""
+    make_totals_and_differences_plot(totals_figures)
 
 
 def make_plot_against_versions(totals_figures):
-    """TODO."""
-    make_raw_and_difference_plot(totals_figures, by_date=False)
+    """Make plot of standard name numbers over time with versions marked."""
+    make_totals_and_differences_plot(totals_figures, by_date=False)
 
 
 def get_new_and_removed_names(
     all_std_names_per_version, newer_version, older_version, print_on=False
 ):
-    """TODO."""
+    """Get new and removed names from a version relative to the previous."""
     newer_set = set(all_std_names_per_version[str(newer_version)])
 
     # Take empty set for the non-existing version before the first
     if older_version == 0:
-        older_set = {}
+        older_set = set()
     else:
         older_set = set(all_std_names_per_version[str(older_version)])
 
@@ -372,7 +392,7 @@ def get_new_and_removed_names(
 
 
 def convert_underscored_phrase_to_words(all_names_list):
-    """TODO."""
+    """Convert delimiters of standard name words from underscores to spaces."""
     name_phrase_list = []
     for name in all_names_list:
         phrase = name.replace("_", " ")
@@ -380,9 +400,9 @@ def convert_underscored_phrase_to_words(all_names_list):
     return name_phrase_list
 
 
-def print_version_comparison(newer_version, older_version, print_totals_only=True):
-    """TODO."""
-    # SADIE
+def get_version_comparison(
+        newer_version, older_version, print_totals_only=True):
+    """Get new and removed names from one version relative to another."""
     all_names = get_all_std_names_per_version(return_names=True)
 
     added_names, removed_names = get_new_and_removed_names(
@@ -415,7 +435,7 @@ def make_wordcloud(newer_version, older_version=False, print_totals_only=True):
     if not older_version:
         older_version = newer_version - 1
 
-    names = print_version_comparison(
+    names = get_version_comparison(
         newer_version,
         older_version,
         print_totals_only=print_totals_only,
@@ -424,7 +444,9 @@ def make_wordcloud(newer_version, older_version=False, print_totals_only=True):
 
     # Define a Robinson projection shape to use as the wordcloud outline shape
     image_shape = np.array(
-        Image.open(os.path.join(PWD, "robinson_proj_shape_cartopy.png"))
+        Image.open(
+            os.path.join(os.path.dirname(__file__),
+                         "robinson_proj_shape_cartopy.png"))
     )
 
     # The earth-like colour maps have white in them which means occasionally
@@ -452,7 +474,7 @@ def make_wordcloud(newer_version, older_version=False, print_totals_only=True):
 
     plt.savefig(
         os.path.join(
-            PWD,
+            SAVE_DIR,
             f"{WORDCLOUD_PLOTNAME_PREFIX}_versions"
             f"{older_version}_to_{newer_version}",
         ),
@@ -462,7 +484,7 @@ def make_wordcloud(newer_version, older_version=False, print_totals_only=True):
 
 
 def main():
-    """TODO."""
+    """Generate and save chosen visualisations of the standard names."""
     totals_data = get_all_std_names_per_version()
     diff_data = calculate_difference_totals(pre_process(totals_data))
 
@@ -472,14 +494,19 @@ def main():
     print("Totals and differences:")
     pprint.pprint(diff_data)
 
+    # Ensure our directory to save exists
+    if not os.path.exists(SAVE_DIR):
+        os.makedirs(SAVE_DIR, exist_ok=True)
+
     # Plot of totals and differences together
     make_plot_against_dates(diff_data)
+    # Word cloud of entire table, from the first version to the newest
+    make_wordcloud("current", 1)
 
-    # Using some random versions as exmaples:
-    make_wordcloud(12)
-    make_wordcloud(49)
-    make_wordcloud(86)
-    make_wordcloud(86, 1)
+    # Generate word clouds covering every version for new names in each case
+    for v in range(1, 86):
+        make_wordcloud(v)
+        break  # to test with only one, comment out if want all 80+ images!
 
 
 if __name__ == "__main__":
