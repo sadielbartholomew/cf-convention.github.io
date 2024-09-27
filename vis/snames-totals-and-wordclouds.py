@@ -143,8 +143,7 @@ def process_current(totals):
     # Convert versions to integers for plotting:
     current_data = totals_figures["current"]
     totals_figures = {
-        int(ver): data for ver, data in totals_figures.items()
-        if ver != "current"
+        int(ver): data for ver, data in totals_figures.items() if ver != "current"
     }
     # Convert current to assumed latest version, for plotting version as int:
     highest_vesion = max(totals_figures.keys())
@@ -192,6 +191,10 @@ def make_totals_and_differences_plot(diff_data, by_date=True):
 
     plt.rcParams.update({"font.size": 12})
     fig, ax1 = plt.subplots(figsize=(12, 10))
+    # Remove horizontal space between axes
+    fig.subplots_adjust(hspace=0)
+
+    # Add text and adjust ticks and labels for axis 1
     ax1.set_title(
         (
             "Number of CF Conventions Standard Names in the table "
@@ -199,12 +202,15 @@ def make_totals_and_differences_plot(diff_data, by_date=True):
         ),
         fontsize=18,
     )
-    # Remove horizontal space between axes
-    fig.subplots_adjust(hspace=0)
     ax1.set_xlabel("Date, marked each year at January 1st", fontsize=17)
     ax1.tick_params(axis="x", which="minor")
     ax1.set_ylabel("Total number of names", fontsize=17)
     ax1.xaxis.set_minor_locator(AutoMinorLocator(4))
+    ax1.yaxis.label.set_color(COLOUR_2)
+    ax1.yaxis.set_major_locator(MultipleLocator(500))
+    ax1.tick_params(axis="y", which="both", colors=COLOUR_2)
+
+    # Add text and adjust ticks and labels for axis 2
     ax2 = ax1.twinx()
     ax2.set_ylabel(
         "Difference in total number of names relative to previous version (log scale)",
@@ -215,7 +221,22 @@ def make_totals_and_differences_plot(diff_data, by_date=True):
     # Use 'symlog' not 'log' so we can include zero values
     ax2.set_yscale("symlog")
     ax2.yaxis.set_major_formatter(ScalarFormatter())
+    ax2.set_zorder(3)
+    # symlog specification makes log-scale ticks difficult, so simplest to
+    # explicitly set the minor ticks, like so
+    ax2.set_yticks([0, 1, 10, 100, 1000])
+    ax2.set_yticks(
+        [
+            0,
+        ]
+        + list(range(1, 10))
+        + list(range(10, 100, 10))
+        + list(range(100, 1100, 100)),
+        minor=True,
+    )
+    ax2.tick_params(axis="y", which="both", colors=COLOUR_1)
 
+    # Make the step and the scatter plot
     ax1.step(
         *zip(*sorted_totals),
         where="post",
@@ -225,12 +246,7 @@ def make_totals_and_differences_plot(diff_data, by_date=True):
         zorder=1000,  # ensure in foreground to everything except scatter plot
         label="Total number (see left y-axis)",
     )
-    ax1.yaxis.label.set_color(COLOUR_2)
-
-    ax1.yaxis.set_major_locator(MultipleLocator(500))
-
-    ax2.set_zorder(3)
-    dt = ax2.scatter(
+    ax2.scatter(
         *zip(*sorted_diffs),
         s=20,
         color=COLOUR_1,
@@ -248,7 +264,6 @@ def make_totals_and_differences_plot(diff_data, by_date=True):
             x = convert_date_str(data["date"])
             y_diff = data["diff"]
             y_total = data["total"]
-
             y_offset = y_total + 200
             if ver >= 60:
                 # Bit more than -200, inverse to above, to cover arrow size
@@ -289,25 +304,9 @@ def make_totals_and_differences_plot(diff_data, by_date=True):
     )
     ax2.yaxis.label.set_color(COLOUR_1)
 
-    ax1.set_ylim(bottom=0)
-    # symlog specification makes log-scale ticks difficult, so simplest to
-    # explicitly set the minor ticks, like so
-    ax2.set_yticks([0, 1, 10, 100, 1000])
-    ax2.set_yticks(
-        [
-            0,
-        ]
-        + list(range(1, 10))
-        + list(range(10, 100, 10))
-        + list(range(100, 1100, 100)),
-        minor=True,
-    )
-    ax1.tick_params(axis="y", which="both", colors=COLOUR_2)
-    ax2.tick_params(axis="y", which="both", colors=COLOUR_1)
-
     fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
-    # Add layout
+    # Add legend
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(
@@ -400,8 +399,7 @@ def convert_underscored_phrase_to_words(all_names_list):
     return name_phrase_list
 
 
-def get_version_comparison(
-        newer_version, older_version, print_totals_only=True):
+def get_version_comparison(newer_version, older_version, print_totals_only=True):
     """Get new and removed names from one version relative to another."""
     all_names = get_all_std_names_per_version(return_names=True)
 
@@ -429,7 +427,13 @@ def get_version_comparison(
     return added_names_spaced
 
 
-def make_wordcloud(newer_version, older_version=False, print_totals_only=True):
+def make_wordcloud(
+    newer_version,
+    older_version=False,
+    print_totals_only=True,
+    use_detailed_globe_mask=False,
+    long_title=False,
+):
     """Create wordcloud for version differences in standard names."""
     # If no older version specified, make it the one before set newer version
     if not older_version:
@@ -445,25 +449,62 @@ def make_wordcloud(newer_version, older_version=False, print_totals_only=True):
     # Define a Robinson projection shape to use as the wordcloud outline shape
     image_shape = np.array(
         Image.open(
-            os.path.join(os.path.dirname(__file__),
-                         "robinson_proj_shape_cartopy.png"))
+            os.path.join(os.path.dirname(__file__), "robinson_proj_shape_cartopy.png")
+        )
     )
 
-    # The earth-like colour maps have white in them which means occasionally
-    # text will be added which is close to white in colour and therefore not
-    # readable, so cut off the white end of the colour map (via 0.2 - 1 range)
-    lv_tmp = np.linspace(0.0, 0.9, 100)
-    cm_tmp = cm.gist_earth(lv_tmp)
-    new_cmap = mcol.ListedColormap(cm_tmp)
+    if use_detailed_globe_mask:
+        mask_with = np.array(
+            Image.open(
+                os.path.join(
+                    "vis", "globe_from_open_clip_art_greener_whitebackground.png"
+                )
+            )
+        )
+        image_colors = ImageColorGenerator(mask_with)
+        wordcloud = WordCloud(
+            # collocations=False,
+            background_color="white",
+            mask=mask_with,
+            color_func=image_colors,
+            width=2000,
+            height=1000,
+            max_font_size=200,
+            min_font_size=8,
+        ).generate(names_with_newline_delim)
+    else:
+        # The earth-like colour maps have white in them which means occasionally
+        # text will be added which is close to white in colour and therefore not
+        # readable, so cut off the white end of the colour map (via 0.2 - 1 range)
+        lv_tmp = np.linspace(0.0, 0.9, 100)
+        cm_tmp = cm.gist_earth(lv_tmp)
+        new_cmap = mcol.ListedColormap(cm_tmp)
 
-    wordcloud = WordCloud(
-        width=800,
-        height=400,
-        background_color="white",
-        # Use an earth-like colour scheme to match the geoscience scope
-        colormap=new_cmap,
-        mask=image_shape,
-    ).generate(names_with_newline_delim)
+        wordcloud = WordCloud(
+            width=800,
+            height=400,
+            background_color="white",
+            # Use an earth-like colour scheme to match the geoscience scope
+            colormap=new_cmap,
+            mask=image_shape,
+        ).generate(names_with_newline_delim)
+
+    # Add title to, in particular, distinguish version additions depicted
+    describe_new_version = newer_version
+    if newer_version == "current":
+        describe_new_version = "the present (latest) version"
+    if long_title:
+        plt.title(
+            "Word cloud representation of all CF Standard Names added\n"
+            f"between versions {older_version} and {describe_new_version}"
+        )
+    elif newer_version != "current" and older_version == newer_version - 1:
+        plt.title(f"New to version {newer_version} of the CF Standard Names Table")
+    else:
+        plt.title(
+            "Standard Names added between "
+            f"version {older_version} and {describe_new_version}"
+        )
 
     plt.imshow(
         wordcloud,
@@ -501,12 +542,13 @@ def main():
     # Plot of totals and differences together
     make_plot_against_dates(diff_data)
     # Word cloud of entire table, from the first version to the newest
-    make_wordcloud("current", 1)
+    make_wordcloud("current", 1, use_detailed_globe_mask=True, long_title=True)
 
     # Generate word clouds covering every version for new names in each case
     for v in range(1, 86):
-        make_wordcloud(v)
-        break  # to test with only one, comment out if want all 80+ images!
+        make_wordcloud(v, use_detailed_globe_mask=True)
+        if v == 2:
+            break  # to test with only one, comment out if want all 80+ images!
 
 
 if __name__ == "__main__":
