@@ -342,6 +342,12 @@ def get_new_and_removed_names(
     all_std_names_per_version, newer_version, older_version, print_on=False
 ):
     """Get new and removed names from a version relative to the previous."""
+    if newer_version == 38 or older_version == 38:
+        raise ValueError(
+            "No standard name table was published with version number 38 "
+            "so '38' isn't a valid version input."
+        )
+
     newer_set = set(all_std_names_per_version[str(newer_version)])
 
     # Take empty set for the non-existing version before the first
@@ -453,6 +459,14 @@ def make_wordcloud(
         )
     )
 
+    if not names:
+        print(
+            "Zero names for the case "
+            f"between versions {older_version} and {newer_version}, "
+            "so can't generate Word Cloud. Skipping."
+        )
+        return
+
     if use_detailed_globe_mask:
         mask_with = np.array(
             Image.open(
@@ -544,11 +558,20 @@ def main():
     # Word cloud of entire table, from the first version to the newest
     make_wordcloud("current", 1, use_detailed_globe_mask=True, long_title=True)
 
+    # Get highest key i.e. version parsed
+    highest_v = max([k for k in diff_data.keys() if isinstance(k, int)])
+    print(f"Highest version found (exluding 'current') is {highest_v}")
     # Generate word clouds covering every version for new names in each case
-    for v in range(1, 86):
-        make_wordcloud(v, use_detailed_globe_mask=True)
-        if v == 2:
-            break  # to test with only one, comment out if want all 80+ images!
+    # 'current' -> version integer in diff_data so we want highest_v - 1 for
+    # the highest table number but also + 1 for the range endpoint, +1-1 = 0.
+    for v in range(1, highest_v):
+        # Handle lack of v38 of table
+        if v == 38:
+            continue
+        elif v == 39:
+            make_wordcloud(39, 37, use_detailed_globe_mask=True)
+        else:
+            make_wordcloud(v, use_detailed_globe_mask=True)
 
 
 if __name__ == "__main__":
